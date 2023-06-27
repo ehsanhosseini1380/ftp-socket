@@ -16,7 +16,8 @@ s.listen(1)
 conn, addr = s.accept()
 
 print("\nConnected to by address: {}".format(addr))
-
+VALID_USERNAME = "admin"
+VALID_PASSWORD = "password"
 
 def receive_data(size):
     data = conn.recv(size)
@@ -24,10 +25,29 @@ def receive_data(size):
         raise ConnectionError("Connection closed by client.")
     return data
 
-
 def send_data(data):
     conn.send(data)
 
+def handle_auth_request(request):
+    _, credentials = request.split(" ")
+    username, password = credentials.split(":")
+    if username == VALID_USERNAME and password == VALID_PASSWORD:
+        send_data("OK".encode())
+        return True
+    else:
+        send_data("FAIL".encode())
+        return False
+
+authenticated = False
+
+while not authenticated:
+    data = receive_data(BUFFER_SIZE)
+    if data.startswith(b"AUTH"):
+        if handle_auth_request(data.decode()):
+            authenticated = True
+        else:
+            conn.close()
+            sys.exit(1)
 
 def upld():
     # Send message once server is ready to receive file details
@@ -57,7 +77,6 @@ def upld():
     # Send upload performance details
     send_data(struct.pack("f", time.time() - start_time))
     send_data(struct.pack("i", file_size))
-
 
 def list_files():
     print("Listing files...")
@@ -92,7 +111,6 @@ def list_files():
     receive_data(BUFFER_SIZE)
     print("Successfully sent file listing")
 
-
 def dwld():
     send_data(b"1")
 
@@ -126,7 +144,6 @@ def dwld():
     receive_data(BUFFER_SIZE)
     send_data(struct.pack("f", time.time() - start_time))
 
-
 def delf():
     # Send go-ahead
     send_data(b"1")
@@ -158,7 +175,6 @@ def delf():
         # The server probably received "N", but else used as a safety catch-all
         print("Delete abandoned by client!")
 
-
 def quit_server():
     # Send quit confirmation
     send_data(b"1")
@@ -169,7 +185,6 @@ def quit_server():
 
     # Restart the server
     os.execl(sys.executable, sys.executable, *sys.argv)
-
 
 while True:
     # Enter into a while loop to receive commands from the client

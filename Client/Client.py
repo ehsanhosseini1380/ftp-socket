@@ -3,9 +3,9 @@ import sys
 import os
 import struct
 
-TCP_IP = "127.0.0.1"  # Only a local server
-TCP_PORT = 1456  # Just a random choice
-BUFFER_SIZE = 1024  # Standard choice
+TCP_IP = "127.0.0.1"
+TCP_PORT = 1456
+BUFFER_SIZE = 1024
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 def conn():
@@ -14,9 +14,21 @@ def conn():
     try:
         s.connect((TCP_IP, TCP_PORT))
         print("Connection successful")
+        # Send authentication credentials
+        username = input("Enter username: ")
+        password = input("Enter password: ")
+        s.sendall(f"AUTH {username}:{password}".encode())
+        auth_response = s.recv(BUFFER_SIZE).decode()
+        if auth_response != "OK":
+            print("Authentication failed. Disconnecting.")
+            s.close()
+            sys.exit(1)
     except Exception as e:
         print("Connection unsuccessful. Make sure the server is online.")
         print(f"Error: {str(e)}")
+
+# Rest of the client code...
+
 
 def upld(file_name):
     # Upload a file
