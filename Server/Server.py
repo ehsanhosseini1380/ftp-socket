@@ -3,6 +3,7 @@ import sys
 import time
 import os
 import struct
+import hashlib
 
 print("\nWelcome to the FTP server.\n\nTo get started, connect a client.")
 
@@ -15,7 +16,7 @@ s.bind((TCP_IP, TCP_PORT))
 s.listen(1)
 conn, addr = s.accept()
 
-print("\nConnected to by address: {}".format(addr))
+print("\nConnected by address: {}".format(addr))
 VALID_USERNAME = "admin"
 VALID_PASSWORD = "password"
 
@@ -31,8 +32,7 @@ def send_data(data):
 def handle_auth_request(request):
     _, credentials = request.split(" ")
     username, password = credentials.split(":")
-    print("username:" + username)
-    print("pass:" + password)
+    
     if username == VALID_USERNAME and password == VALID_PASSWORD:
         send_data("OK".encode())
         return True
@@ -47,10 +47,6 @@ while not authenticated:
     if data.startswith(b"AUTH"):
         if handle_auth_request(data.decode()):
             authenticated = True
-        # else:
-        #     conn.close()
-        #     sys.exit(1)
-        #     continue
 
 def upld():
     # Send message once server is ready to receive file details
@@ -81,6 +77,14 @@ def upld():
     send_data(struct.pack("f", time.time() - start_time))
     send_data(struct.pack("i", file_size))
 
+    # Calculate and send MD5 hash of the received file
+    md5_hash = hashlib.md5()
+    with open(file_name, "rb") as file:
+        for chunk in iter(lambda: file.read(BUFFER_SIZE), b""):
+            md5_hash.update(chunk)
+    md5_hash_digest = md5_hash.hexdigest().encode()
+    send_data(md5_hash_digest)
+
 def list_files():
     print("Listing files...")
     # Get list of files in directory
@@ -101,111 +105,23 @@ def list_files():
         # File name
         send_data(file_name_bytes)
 
-        # File content size
+        # File size
         send_data(struct.pack("i", file_size))
 
-        # Make sure that the client and server are synchronized
-        receive_data(BUFFER_SIZE)
-
-    # Sum of file sizes in directory
-    send_data(struct.pack("i", total_directory_size))
-
-    # Final check
-    receive_data(BUFFER_SIZE)
-    print("Successfully sent file listing")
-
-def dwld():
-    send_data(b"1")
-
-    # Receive file name length and file name
-    file_name_length = struct.unpack("h", receive_data(2))[0]
-    file_name = receive_data(file_name_length)
-
-    if os.path.isfile(file_name):
-        # File exists, send file size
-        send_data(struct.pack("i", os.path.getsize(file_name)))
-    else:
-        # File doesn't exist, send error code
-        print("File name not valid")
-        send_data(struct.pack("i", -1))
-        return
-
-    # Wait for confirmation to send file
-    receive_data(BUFFER_SIZE)
-
-    # Enter loop to send file
-    start_time = time.time()
-    print("Sending file...")
-    with open(file_name, "rb") as content:
-        while True:
-            data = content.read(BUFFER_SIZE)
-            if not data:
-                break
-            send_data(data)
-
-    # Get client's go-ahead, then send download details
-    receive_data(BUFFER_SIZE)
-    send_data(struct.pack("f", time.time() - start_time))
-
-def delf():
-    # Send go-ahead
-    send_data(b"1")
-
-    # Get file details
-    file_name_length = struct.unpack("h", receive_data(2))[0]
-    file_name = receive_data(file_name_length)
-
-    # Check if file exists
-    if os.path.isfile(file_name):
-        send_data(struct.pack("i", 1))
-    else:
-        # File doesn't exist
-        send_data(struct.pack("i", -1))
-
-    # Wait for deletion confirmation
-    confirm_delete = receive_data(BUFFER_SIZE)
-    if confirm_delete == b"Y":
-        try:
-            # Delete file
-            os.remove(file_name)
-            send_data(struct.pack("i", 1))
-        except:
-            # Unable to delete file
-            print("Failed to delete {}".format(file_name))
-            send_data(struct.pack("i", -1))
-    else:
-        # User abandoned deletion
-        # The server probably received "N", but else used as a safety catch-all
-        print("Delete abandoned by client!")
-
-def quit_server():
-    # Send quit confirmation
-    send_data(b"1")
-
-    # Close the connection and the server
-    conn.close()
-    s.close()
-
-    # Restart the server
-    os.execl(sys.executable, sys.executable, *sys.argv)
+    # Send the total size of the directory
+    send_data(struct.pack("q", total_directory_size))
 
 while True:
-    # Enter into a while loop to receive commands from the client
-    print("\n\nWaiting for instruction")
-    data = receive_data(BUFFER_SIZE)
-    print("\nReceived instruction: {}".format(data))
+    # Receive command
+    command = receive_data(BUFFER_SIZE).decode()
 
-    # Check the command and respond correctly
-    if data == b"UPLD":
+    if command == "UPLD":
         upld()
-    elif data == b"LIST":
+    elif command == "LIST":
         list_files()
-    elif data == b"DWLD":
-        dwld()
-    elif data == b"DELF":
-        delf()
-    elif data == b"QUIT":
-        quit_server()
-
-    # Reset the data to loop
-    data = None
+    elif command == "QUIT":
+        print("\nDisconnecting from client...")
+        conn.close()
+        sys.exit()
+    else:
+        print("Invalid command received: {}".format(command))
