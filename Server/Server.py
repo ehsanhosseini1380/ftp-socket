@@ -108,6 +108,14 @@ def list_files():
         # File size
         send_data(struct.pack("i", file_size))
 
+        # File creation time
+        creation_time = datetime.datetime.fromtimestamp(os.path.getctime(file_name))
+        send_data(creation_time.strftime("%Y-%m-%d %H:%M:%S").encode())
+
+        # File modification time
+        modification_time = datetime.datetime.fromtimestamp(os.path.getmtime(file_name))
+        send_data(modification_time.strftime("%Y-%m-%d %H:%M:%S").encode())
+
     # Send the total size of the directory
     send_data(struct.pack("q", total_directory_size))
 

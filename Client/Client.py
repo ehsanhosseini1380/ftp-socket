@@ -72,27 +72,40 @@ def upld(file_path):
     else:
         print("MD5 hash verification: Failed")
 
-def list_files():
+def list_files(sock):
     # Send command to server
-    send_data(b"LIST")
+    send_data(sock, b"LIST")
 
-    # Receive the number of files in the directory
-    num_files = struct.unpack("i", receive_data(4))[0]
+    # Receive number of files
+    num_files = struct.unpack("i", receive_data(sock, 4))[0]
+    print("\nNumber of files in directory: {}\n".format(num_files))
 
-    print("\nFiles in the directory:")
+    total_directory_size = 0
     for _ in range(num_files):
-        # Receive file name length and file name
-        file_name_size = struct.unpack("i", receive_data(4))[0]
-        file_name = receive_data(file_name_size).decode()
+        # Receive file name size
+        file_name_size = struct.unpack("i", receive_data(sock, 4))[0]
+
+        # Receive file name
+        file_name = receive_data(sock, file_name_size).decode()
 
         # Receive file size
-        file_size = struct.unpack("i", receive_data(4))[0]
+        file_size = struct.unpack("i", receive_data(sock, 4))[0]
+        total_directory_size += file_size
 
-        print("- {} ({} bytes)".format(file_name, file_size))
+        # Receive file creation time
+        creation_time = receive_data(sock, 19).decode()
 
-    # Receive the total size of the directory
-    total_directory_size = struct.unpack("q", receive_data(8))[0]
-    print("\nTotal directory size: {} bytes".format(total_directory_size))
+        # Receive file modification time
+        modification_time = receive_data(sock, 19).decode()
+
+        print("File Name: {}".format(file_name))
+        print("Size: {} bytes".format(file_size))
+        print("Creation Time: {}".format(creation_time))
+        print("Modification Time: {}\n".format(modification_time))
+
+    # Receive total directory size
+    total_directory_size = struct.unpack("q", receive_data(sock, 8))[0]
+    print("Total Directory Size: {} bytes\n".format(total_directory_size))
 
 def quit_ftp():
     # Send command to server
@@ -129,7 +142,7 @@ while True:
         else:
             print("Invalid file path.")
     elif choice == "3":
-        list_files()
+        list_files(s)
     elif choice == "4":
         quit_ftp()
     else:
