@@ -42,19 +42,15 @@ s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.bind((TCP_IP, TCP_PORT))
 s.listen(1)
 print("Server started. Listening for connections...")
-
 try:
     while True:
         # Accept client connections
         conn, addr = s.accept()
         print("Client connected:", addr)
-
         # Handle the client in a separate thread or process to allow multiple client connections
         handle_client(conn)
-
 except KeyboardInterrupt:
     print("Server stopped by the user.")
-
 finally:
     # Close the server socket
     s.close()
@@ -97,31 +93,35 @@ def upld():
     send_data(struct.pack("f", time.time() - start_time))
     send_data(struct.pack("i", file_size))
 
-    # Send upload performance details
-    send_data(struct.pack("f", time.time() - start_time))
-    send_data(struct.pack("i", file_size))
-
 def list_files():
     print("Listing files...")
     # Get list of files in directory
     file_list = os.listdir(os.getcwd())
+
     # Send over the number of files, so the client knows what to expect (and avoid some errors)
     send_data(struct.pack("i", len(file_list)))
+
     total_directory_size = 0
     for file_name in file_list:
         file_name_bytes = file_name.encode()
-        file_size = os.path.getsize(os.path.join(os.getcwd(), file_name))
+        file_size = os.path.getsize(file_name)
         total_directory_size += file_size
+
         # File name size
         send_data(struct.pack("i", len(file_name_bytes)))
+
         # File name
         send_data(file_name_bytes)
+
         # File content size
         send_data(struct.pack("i", file_size))
+
         # Make sure that the client and server are synchronized
         receive_data(BUFFER_SIZE)
+
     # Sum of file sizes in directory
     send_data(struct.pack("i", total_directory_size))
+
     # Final check
     receive_data(BUFFER_SIZE)
     print("Successfully sent file listing")

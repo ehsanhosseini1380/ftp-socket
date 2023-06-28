@@ -22,7 +22,7 @@ def conn():
         print(f"Error: {str(e)}")
         return None
 
-def authenticate(s):
+def authenticate(s:socket.socket):
     # Send authentication credentials
     username = input("Enter username: ")
     password = input("Enter password: ")
@@ -36,7 +36,7 @@ def authenticate(s):
         print("Authentication failed. Please check your username and password.")
         return False
 
-def upld(s, file_name):
+def upld(s:socket.socket, file_name):
     # Upload a file
     print("\nUploading file: {}...".format(file_name))
     try:
@@ -56,7 +56,7 @@ def upld(s, file_name):
         s.recv(BUFFER_SIZE)
         # Send file name size and file name
         file_name_size = struct.pack("h", len(file_name.encode()))
-        s.sendall(file_name_size)
+        s.send(file_name_size)
         s.send(file_name.encode())
         # Wait for server ok then send file size
         s.recv(BUFFER_SIZE)
@@ -67,6 +67,8 @@ def upld(s, file_name):
         print(f"Error: {str(e)}")
         return
     try:
+        # Send the file in chunks defined by BUFFER_SIZE
+        # Doing it this way allows for unlimited potential file sizes to be sent
         with open(file_name, "rb") as content:
             print("\nSending...")
             while True:
@@ -83,7 +85,7 @@ def upld(s, file_name):
         print(f"Error: {str(e)}")
         return
 
-def list_files(s):
+def list_files(s:socket.socket):
     # List the files available on the file server
     print("Requesting files...\n")
     try:
@@ -122,7 +124,7 @@ def list_files(s):
         print(f"Error: {str(e)}")
         return
 
-def dwld(s, file_name):
+def dwld(s:socket.socket, file_name):
     # Download given file
     print("Downloading file: {}".format(file_name))
     try:
@@ -172,7 +174,7 @@ def dwld(s, file_name):
         print(f"Error: {str(e)}")
         return
 
-def delf(s, file_name):
+def delf(s:socket.socket, file_name):
     # Delete specified file from the file server
     print("Deleting file: {}...".format(file_name))
     try:
@@ -238,7 +240,7 @@ def delf(s, file_name):
         print(f"Error: {str(e)}")
         return
 
-def quit_ftp(s):
+def quit_ftp(s:socket.socket):
     try:
         s.sendall(b"QUIT")
         s.close()
@@ -249,7 +251,7 @@ def quit_ftp(s):
 
 while True:
     s = conn()
-    if s:
+    if s is not None:
         if authenticate(s):
             while True:
                 print("\nMenu:")
