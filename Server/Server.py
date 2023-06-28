@@ -31,6 +31,8 @@ def send_data(data):
 def handle_auth_request(request):
     _, credentials = request.split(" ")
     username, password = credentials.split(":")
+    print("username:" + username)
+    print("pass:" + password)
     if username == VALID_USERNAME and password == VALID_PASSWORD:
         send_data("OK".encode())
         return True
@@ -45,9 +47,10 @@ while not authenticated:
     if data.startswith(b"AUTH"):
         if handle_auth_request(data.decode()):
             authenticated = True
-        else:
-            conn.close()
-            sys.exit(1)
+        # else:
+        #     conn.close()
+        #     sys.exit(1)
+        #     continue
 
 def upld():
     # Send message once server is ready to receive file details

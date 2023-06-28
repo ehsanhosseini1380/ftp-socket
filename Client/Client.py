@@ -14,20 +14,23 @@ def conn():
     try:
         s.connect((TCP_IP, TCP_PORT))
         print("Connection successful")
-        # Send authentication credentials
-        username = input("Enter username: ")
-        password = input("Enter password: ")
-        s.sendall(f"AUTH {username}:{password}".encode())
-        auth_response = s.recv(BUFFER_SIZE).decode()
-        if auth_response != "OK":
-            print("Authentication failed. Disconnecting.")
-            s.close()
-            sys.exit(1)
+
+        while True:
+            # Send authentication credentials
+            username = input("Enter username: ")
+            password = input("Enter password: ")
+            s.sendall(f"AUTH {username}:{password}".encode())
+            auth_response = s.recv(BUFFER_SIZE).decode()
+            print("server response:" + auth_response)
+            if auth_response == "OK":
+                print("Authentication successful")
+                break
+            else:
+                print("Authentication failed. Please try again.")
+
     except Exception as e:
         print("Connection unsuccessful. Make sure the server is online.")
         print(f"Error: {str(e)}")
-
-# Rest of the client code...
 
 
 def upld(file_name):
