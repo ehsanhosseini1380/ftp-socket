@@ -38,15 +38,15 @@ def handle_client(client_socket):
         client_socket.close()
 
 # Set up the server socket
-server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server_socket.bind((TCP_IP, TCP_PORT))
-server_socket.listen(1)
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.bind((TCP_IP, TCP_PORT))
+s.listen(1)
 print("Server started. Listening for connections...")
 
 try:
     while True:
         # Accept client connections
-        conn, addr = server_socket.accept()
+        conn, addr = s.accept()
         print("Client connected:", addr)
 
         # Handle the client in a separate thread or process to allow multiple client connections
@@ -57,7 +57,7 @@ except KeyboardInterrupt:
 
 finally:
     # Close the server socket
-    server_socket.close()
+    s.close()
 
 def receive_data(size):
     data = conn.recv(size)
@@ -105,31 +105,23 @@ def list_files():
     print("Listing files...")
     # Get list of files in directory
     file_list = os.listdir(os.getcwd())
-
     # Send over the number of files, so the client knows what to expect (and avoid some errors)
     send_data(struct.pack("i", len(file_list)))
-
     total_directory_size = 0
     for file_name in file_list:
         file_name_bytes = file_name.encode()
-        file_size = os.path.getsize(file_name)
+        file_size = os.path.getsize(os.path.join(os.getcwd(), file_name))
         total_directory_size += file_size
-
         # File name size
         send_data(struct.pack("i", len(file_name_bytes)))
-
         # File name
         send_data(file_name_bytes)
-
         # File content size
         send_data(struct.pack("i", file_size))
-
         # Make sure that the client and server are synchronized
         receive_data(BUFFER_SIZE)
-
     # Sum of file sizes in directory
     send_data(struct.pack("i", total_directory_size))
-
     # Final check
     receive_data(BUFFER_SIZE)
     print("Successfully sent file listing")
@@ -198,7 +190,7 @@ def delf():
         # The server probably received "N", but else used as a safety catch-all
         print("Delete abandoned by client!")
 
-def quit_server(s):
+def quit_server():
     # Send quit confirmation
     send_data(b"1")
 
@@ -225,7 +217,6 @@ while True:
     elif data == b"DELF":
         delf()
     elif data == b"QUIT":
-        quit_server(s)
+        quit_server()
 
-    # Reset the data to loop
     data = None

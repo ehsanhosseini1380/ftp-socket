@@ -36,8 +36,7 @@ def authenticate(s):
         print("Authentication failed. Please check your username and password.")
         return False
 
-
-def upld(file_name):
+def upld(s, file_name):
     # Upload a file
     print("\nUploading file: {}...".format(file_name))
     try:
@@ -57,7 +56,7 @@ def upld(file_name):
         s.recv(BUFFER_SIZE)
         # Send file name size and file name
         file_name_size = struct.pack("h", len(file_name.encode()))
-        s.send(file_name_size)
+        s.sendall(file_name_size)
         s.send(file_name.encode())
         # Wait for server ok then send file size
         s.recv(BUFFER_SIZE)
@@ -68,8 +67,6 @@ def upld(file_name):
         print(f"Error: {str(e)}")
         return
     try:
-        # Send the file in chunks defined by BUFFER_SIZE
-        # Doing it this way allows for unlimited potential file sizes to be sent
         with open(file_name, "rb") as content:
             print("\nSending...")
             while True:
@@ -86,8 +83,7 @@ def upld(file_name):
         print(f"Error: {str(e)}")
         return
 
-
-def list_files():
+def list_files(s):
     # List the files available on the file server
     print("Requesting files...\n")
     try:
@@ -126,7 +122,7 @@ def list_files():
         print(f"Error: {str(e)}")
         return
 
-def dwld(file_name):
+def dwld(s, file_name):
     # Download given file
     print("Downloading file: {}".format(file_name))
     try:
@@ -176,7 +172,7 @@ def dwld(file_name):
         print(f"Error: {str(e)}")
         return
 
-def delf(file_name):
+def delf(s, file_name):
     # Delete specified file from the file server
     print("Deleting file: {}...".format(file_name))
     try:
@@ -244,40 +240,56 @@ def delf(file_name):
 
 def quit_ftp(s):
     try:
-        s.sendall(b"CLOSE")
+        s.sendall(b"QUIT")
         s.close()
         print("Connection closed.")
     except Exception as e:
         print("Error closing connection")
         print(f"Error: {str(e)}")
 
-print("\n\nWelcome to the FTP client.\n\nCall one of the following functions:\nCONN           : Connect to the server\nUPLD file_path : Upload a file\nLIST           : List files\nDWLD file_path : Download a file\nDELF file_path : Delete a file\nQUIT           : Exit")
-
 while True:
-    # Listen for a command
-    prompt = input("\nEnter a command: ")
-    if prompt[:4].upper() == "CONN":
-        # conn()
-        # Connect to the server
-        s = conn()
-        if s:
-            # Perform authentication
-            if authenticate(s):
-                pass
+    s = conn()
+    if s:
+        if authenticate(s):
+            while True:
+                print("\nMenu:")
+                print("1. Upload a file")
+                print("2. Download a file")
+                print("3. Delete a file")
+                print("4. List files in the server directory")
+                print("5. Quit")
+                choice = input("Enter your choice (1-5): ")
+                if choice == "1":
+                    file_name = input("Enter the file name to upload: ")
+                    upld(s, file_name)
+                elif choice == "2":
+                    file_name = input("Enter the file name to download: ")
+                    dwld(s, file_name)
+                elif choice == "3":
+                    file_name = input("Enter the file name to delete: ")
+                    delf(s, file_name)
+                elif choice == "4":
+                    list_files(s)
+                elif choice == "5":
+                    quit(s)
+                    break
+                else:
+                    print("Invalid choice. Please try again.")
             else:
-                # Authentication failed
                 quit_ftp(s)
 
-    elif prompt[:4].upper() == "UPLD":
-        upld(prompt[5:])
-    elif prompt[:4].upper() == "LIST":
-        list_files()
-    elif prompt[:4].upper() == "DWLD":
-        dwld(prompt[5:])
-    elif prompt[:4].upper() == "DELF":
-        delf(prompt[5:])
-    elif prompt[:4].upper() == "QUIT":
-        quit_ftp(s)
-        break
-    else:
-        print("Command not recognized; please try again")
+    # elif prompt[:4].upper() == "UPLD":
+    #     upld(s, prompt[5:])
+    # elif prompt[:4].upper() == "LIST":
+    #     list_files(s)
+    # elif prompt[:4].upper() == "DWLD":
+    #     dwld(s, prompt[5:])
+    # elif prompt[:4].upper() == "DELF":
+    #     delf(s, prompt[5:])
+    # elif prompt[:4].upper() == "QUIT":
+    #     quit_ftp(s)
+    #     break
+    # else:
+    #     print("Command not recognized; please try again")
+
+
