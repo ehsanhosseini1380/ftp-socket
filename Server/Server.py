@@ -10,54 +10,14 @@ print("\nWelcome to the FTP server.\n\nTo get started, connect a client.")
 TCP_IP = "127.0.0.1"  # Only a local server
 TCP_PORT = 1456  # Just a random choice
 BUFFER_SIZE = 1024  # Standard size
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.bind((TCP_IP, TCP_PORT))
+s.listen(1)
+conn, addr = s.accept()
 
-valid_credentials = {
-    "admin": "password",
-    "user1": "abc123",
-    "user2": "xyz789"
-}
-
-def authenticate(client_socket):
-    # Receive and parse authentication credentials
-    data = client_socket.recv(BUFFER_SIZE).decode()
-    username, password = data.split(":")
-
-    # Check if the credentials are valid
-    if username in valid_credentials and valid_credentials[username] == password:
-        client_socket.sendall(b"OK")
-        return True
-    else:
-        client_socket.sendall(b"ERROR")
-        return False
-
-def handle_client(client_socket):
-    if authenticate(client_socket):
-        pass
-    else:
-        print("Authentication failed for client.")
-        client_socket.close()
-
-# Set up the server socket
-server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server_socket.bind((TCP_IP, TCP_PORT))
-server_socket.listen(1)
-print("Server started. Listening for connections...")
-
-try:
-    while True:
-        # Accept client connections
-        conn, addr = server_socket.accept()
-        print("Client connected:", addr)
-
-        # Handle the client in a separate thread or process to allow multiple client connections
-        handle_client(conn)
-
-except KeyboardInterrupt:
-    print("Server stopped by the user.")
-
-finally:
-    # Close the server socket
-    server_socket.close()
+print("\nConnected to by address: {}".format(addr))
+VALID_USERNAME = "admin"
+VALID_PASSWORD = "password"
 
 def receive_data(size):
     data = conn.recv(size)
@@ -67,6 +27,30 @@ def receive_data(size):
 
 def send_data(data):
     conn.send(data)
+
+def handle_auth_request(request):
+    _, credentials = request.split(" ")
+    username, password = credentials.split(":")
+    print("username:" + username)
+    print("pass:" + password)
+    if username == VALID_USERNAME and password == VALID_PASSWORD:
+        send_data("OK".encode())
+        return True
+    else:
+        send_data("FAIL".encode())
+        return False
+
+authenticated = False
+
+while not authenticated:
+    data = receive_data(BUFFER_SIZE)
+    if data.startswith(b"AUTH"):
+        if handle_auth_request(data.decode()):
+            authenticated = True
+        # else:
+        #     conn.close()
+        #     sys.exit(1)
+        #     continue
 
 def upld():
     # Send message once server is ready to receive file details
@@ -92,10 +76,6 @@ def upld():
             output_file.write(data)
             bytes_received += len(data)
     print("\nReceived file: {}".format(file_name))
-
-    # Send upload performance details
-    send_data(struct.pack("f", time.time() - start_time))
-    send_data(struct.pack("i", file_size))
 
     # Send upload performance details
     send_data(struct.pack("f", time.time() - start_time))
@@ -198,7 +178,7 @@ def delf():
         # The server probably received "N", but else used as a safety catch-all
         print("Delete abandoned by client!")
 
-def quit_server(s):
+def quit_server():
     # Send quit confirmation
     send_data(b"1")
 
@@ -225,7 +205,7 @@ while True:
     elif data == b"DELF":
         delf()
     elif data == b"QUIT":
-        quit_server(s)
+        quit_server()
 
     # Reset the data to loop
     data = None

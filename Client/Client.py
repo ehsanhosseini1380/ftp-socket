@@ -6,35 +6,31 @@ import struct
 TCP_IP = "127.0.0.1"
 TCP_PORT = 1456
 BUFFER_SIZE = 1024
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 def conn():
     # Connect to the server
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    print("Sending server request...")
     try:
         s.connect((TCP_IP, TCP_PORT))
         print("Connection successful")
-        return s
-    except ConnectionRefusedError:
-        print("Connection refused. Make sure the server is online.")
-        return None
+
+        while True:
+            # Send authentication credentials
+            username = input("Enter username: ")
+            password = input("Enter password: ")
+            s.sendall(f"AUTH {username}:{password}".encode())
+            auth_response = s.recv(BUFFER_SIZE).decode()
+            print("server response:" + auth_response)
+            if auth_response == "OK":
+                print("Authentication successful")
+                break
+            else:
+                print("Authentication failed. Please try again.")
+
     except Exception as e:
         print("Connection unsuccessful. Make sure the server is online.")
         print(f"Error: {str(e)}")
-        return None
-
-def authenticate(s):
-    # Send authentication credentials
-    username = input("Enter username: ")
-    password = input("Enter password: ")
-    s.sendall(f"{username}:{password}".encode())
-    response = s.recv(BUFFER_SIZE).decode()
-
-    if response == "OK":
-        print("Authentication successful.")
-        return True
-    else:
-        print("Authentication failed. Please check your username and password.")
-        return False
 
 
 def upld(file_name):
@@ -85,7 +81,6 @@ def upld(file_name):
         print("Error sending file")
         print(f"Error: {str(e)}")
         return
-
 
 def list_files():
     # List the files available on the file server
@@ -242,14 +237,13 @@ def delf(file_name):
         print(f"Error: {str(e)}")
         return
 
-def quit_ftp(s):
-    try:
-        s.sendall(b"CLOSE")
-        s.close()
-        print("Connection closed.")
-    except Exception as e:
-        print("Error closing connection")
-        print(f"Error: {str(e)}")
+def quit_ftp():
+    s.sendall(b"QUIT")
+    # Wait for server go-ahead
+    s.recv(BUFFER_SIZE)
+    s.close()
+    print("Server connection ended")
+    return
 
 print("\n\nWelcome to the FTP client.\n\nCall one of the following functions:\nCONN           : Connect to the server\nUPLD file_path : Upload a file\nLIST           : List files\nDWLD file_path : Download a file\nDELF file_path : Delete a file\nQUIT           : Exit")
 
@@ -257,17 +251,7 @@ while True:
     # Listen for a command
     prompt = input("\nEnter a command: ")
     if prompt[:4].upper() == "CONN":
-        # conn()
-        # Connect to the server
-        s = conn()
-        if s:
-            # Perform authentication
-            if authenticate(s):
-                pass
-            else:
-                # Authentication failed
-                quit_ftp(s)
-
+        conn()
     elif prompt[:4].upper() == "UPLD":
         upld(prompt[5:])
     elif prompt[:4].upper() == "LIST":
@@ -277,7 +261,7 @@ while True:
     elif prompt[:4].upper() == "DELF":
         delf(prompt[5:])
     elif prompt[:4].upper() == "QUIT":
-        quit_ftp(s)
+        quit_ftp()
         break
     else:
         print("Command not recognized; please try again")
