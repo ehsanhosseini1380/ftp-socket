@@ -138,9 +138,13 @@ def list_files():
 def dwld(file_name):
     # Download given file
     print("Downloading file: {}".format(file_name))
+
+    base_dir = os.path.join(os.path.dirname(os.getcwd()), "Files")
+    path_to_file = os.path.join(base_dir, file_name)
+
     try:
         # Check if the file exists
-        if not os.path.isfile(file_name):
+        if not os.path.isfile(path_to_file):
             print("Couldn't open file. Make sure the file name was entered correctly.")
             return
         # Send server request
@@ -170,6 +174,8 @@ def dwld(file_name):
         # Send ok to receive file content
         s.sendall(b"1")
         # Enter loop to receive file
+
+        print(file_name)
         with open(file_name, "wb") as output_file:
             bytes_received = 0
             print("\nDownloading...")
