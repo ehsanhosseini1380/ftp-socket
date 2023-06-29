@@ -3,6 +3,8 @@ import sys
 import os
 import struct
 import ssl
+import datetime
+
 
 TCP_IP = "127.0.0.1"
 TCP_PORT = 1456
@@ -43,6 +45,7 @@ def conn():
 
 
 def upld(file_name):
+    file_name = os.path.abspath(file_name)
     # Upload a file
     print("\nUploading file: {}...".format(file_name))
     try:
@@ -112,8 +115,20 @@ def list_files():
             file_name_size = struct.unpack("i", s_ssl.recv(4))[0]
             file_name = s_ssl.recv(file_name_size).decode()
             # Also get the file size for each item on the server
-            file_size = struct.unpack("i", s_ssl.recv(4))[0]
-            print("\t{} - {}b".format(file_name, file_size))
+            file_size = struct.unpack("i", s.recv(4))[0]
+            # Also get the file list modify time for each item on the server
+            file_modify_time = struct.unpack("i", s.recv(4))[0]
+            # Also get the file create time for each item on the server
+            file_create_time = struct.unpack("i", s.recv(4))[0]
+
+
+
+            file_modify_time = datetime.datetime.fromtimestamp(file_modify_time)
+            file_create_time = datetime.datetime.fromtimestamp(file_create_time)
+            file_modify_time = file_modify_time.strftime('%Y-%m-%d %H:%M:%S')
+            file_create_time = file_create_time.strftime('%Y-%m-%d %H:%M:%S')
+            
+            print("\t{} - {}b - {} - {}".format(file_name, file_size, file_modify_time, file_create_time))
             # Make sure that the client and server are synchronized
             s_ssl.sendall(b"1")
         # Get total size of the directory
@@ -136,7 +151,15 @@ def list_files():
 def dwld(file_name):
     # Download given file
     print("Downloading file: {}".format(file_name))
+
+    base_dir = os.path.join(os.path.dirname(os.getcwd()), "Files")
+    path_to_file = os.path.join(base_dir, file_name)
+
     try:
+        # Check if the file exists
+        if not os.path.isfile(path_to_file):
+            print("Couldn't open file. Make sure the file name was entered correctly.")
+            return
         # Send server request
         s_ssl.sendall(b"DWLD")
     except Exception as e:
@@ -164,6 +187,8 @@ def dwld(file_name):
         # Send ok to receive file content
         s_ssl.sendall(b"1")
         # Enter loop to receive file
+
+        print(file_name)
         with open(file_name, "wb") as output_file:
             bytes_received = 0
             print("\nDownloading...")
@@ -188,6 +213,10 @@ def delf(file_name):
     # Delete specified file from the file server
     print("Deleting file: {}...".format(file_name))
     try:
+        # Check if the file exists
+        if not os.path.isfile(file_name):
+            print("Couldn't open file. Make sure the file name was entered correctly.")
+            return
         # Send request, then wait for go-ahead
         s_ssl.sendall(b"DELF")
         s_ssl.recv(BUFFER_SIZE)

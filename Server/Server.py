@@ -59,6 +59,34 @@ while not authenticated:
         #     sys.exit(1)
         #     continue
 
+# def upld():
+#     # Send message once server is ready to receive file details
+#     send_data(b"1")
+
+#     # Receive file name length, then file name
+#     file_name_size = struct.unpack("h", receive_data(2))[0]
+#     file_name = receive_data(file_name_size)
+
+#     # Send message to let client know server is ready for document content
+#     send_data(b"1")
+
+#     # Receive file size
+#     file_size = struct.unpack("i", receive_data(4))[0]
+
+#     # Initialize and enter loop to receive file content
+#     start_time = time.time()
+#     with open(file_name, "wb") as output_file:
+#         print("\nReceiving...")
+#         bytes_received = 0
+#         while bytes_received < file_size:
+#             data = receive_data(min(BUFFER_SIZE, file_size - bytes_received))
+#             output_file.write(data)
+#             bytes_received += len(data)
+#     print("\nReceived file: {}".format(file_name))
+
+#     # Send upload performance details
+#     send_data(struct.pack("f", time.time() - start_time))
+#     send_data(struct.pack("i", file_size))
 
 def upld():
     # Send message once server is ready to receive file details
@@ -74,16 +102,29 @@ def upld():
     # Receive file size
     file_size = struct.unpack("i", receive_data(4))[0]
 
+        # Decode file name from bytes to string
+    file_name = file_name.decode("utf-8")
+
+    # Split file_name into directory path and file name components
+    file_dir, file_name = os.path.split(file_name)
+
+    # Create directory path if it does not exist
+    # if file_dir:
+    #     # os.makedirs(os.path.join("Files", file_dir), exist_ok=True)
+    #     file_path = os.path.join("Files", file_dir, file_name)
+    # else:
+
+    file_path = os.path.join(os.path.dirname(os.getcwd()), "Files", file_name)
     # Initialize and enter loop to receive file content
     start_time = time.time()
-    with open(file_name, "wb") as output_file:
+    with open(file_path, "wb") as output_file:
         print("\nReceiving...")
         bytes_received = 0
         while bytes_received < file_size:
             data = receive_data(min(BUFFER_SIZE, file_size - bytes_received))
             output_file.write(data)
             bytes_received += len(data)
-    print("\nReceived file: {}".format(file_name))
+    print("\nReceived file: {}".format(file_path))
 
     # Send upload performance details
     send_data(struct.pack("f", time.time() - start_time))
@@ -93,15 +134,19 @@ def upld():
 def list_files():
     print("Listing files...")
     # Get list of files in directory
-    file_list = os.listdir(os.getcwd())
+    base_dir = os.path.join(os.path.dirname(os.getcwd()), "Files")
+    file_list = os.listdir(base_dir)
 
     # Send over the number of files, so the client knows what to expect (and avoid some errors)
     send_data(struct.pack("i", len(file_list)))
 
     total_directory_size = 0
     for file_name in file_list:
+        file_abs_path = os.path.join(base_dir, file_name)
         file_name_bytes = file_name.encode()
-        file_size = os.path.getsize(file_name)
+        file_size = os.path.getsize(file_abs_path)
+        file_modify_time = os.path.getmtime(file_abs_path)
+        file_create_time = os.path.getctime(file_abs_path)
         total_directory_size += file_size
 
         # File name size
@@ -112,6 +157,12 @@ def list_files():
 
         # File content size
         send_data(struct.pack("i", file_size))
+
+        # File last modify time
+        send_data(struct.pack("i", int(file_modify_time)))
+
+        # File create time
+        send_data(struct.pack("i", int(file_create_time)))
 
         # Make sure that the client and server are synchronized
         receive_data(BUFFER_SIZE)
@@ -129,7 +180,10 @@ def dwld():
 
     # Receive file name length and file name
     file_name_length = struct.unpack("h", receive_data(2))[0]
-    file_name = receive_data(file_name_length)
+    base_dir = os.path.join(os.path.dirname(os.getcwd()), "Files")
+            # Decode file name from bytes to string
+    file_name = os.path.join(base_dir, receive_data(file_name_length).decode("utf-8"))
+
 
     if os.path.isfile(file_name):
         # File exists, send file size
@@ -164,7 +218,10 @@ def delf():
 
     # Get file details
     file_name_length = struct.unpack("h", receive_data(2))[0]
-    file_name = receive_data(file_name_length)
+    # file_name = receive_data(file_name_length)
+    base_dir = os.path.join(os.path.dirname(os.getcwd()), "Files")
+            # Decode file name from bytes to string
+    file_name = os.path.join(base_dir, receive_data(file_name_length).decode("utf-8"))
 
     # Check if file exists
     if os.path.isfile(file_name):
@@ -191,13 +248,10 @@ def delf():
 
 
 def quit_server():
-    # Send quit confirmation
     send_data(b"1")
-
     # Close the connection and the server
     conn.close()
     s.close()
-
     # Restart the server
     os.execl(sys.executable, sys.executable, *sys.argv)
 
