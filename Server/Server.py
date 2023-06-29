@@ -3,21 +3,27 @@ import sys
 import time
 import os
 import struct
+import ssl
 
 print("\nWelcome to the FTP server.\n\nTo get started, connect a client.")
 
-# Initialize socket stuff
 TCP_IP = "127.0.0.1"  # Only a local server
 TCP_PORT = 1456  # Just a random choice
 BUFFER_SIZE = 1024  # Standard size
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-s.bind((TCP_IP, TCP_PORT))
-s.listen(1)
-conn, addr = s.accept()
 
+ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+ssl_context.load_cert_chain(certfile="certificate.crt", keyfile="private.key")
+
+s_ssl = ssl_context.wrap_socket(s, server_side=True)
+
+s_ssl.bind((TCP_IP, TCP_PORT))
+s_ssl.listen(1)
+conn, addr = s_ssl.accept()
 print("\nConnected to by address: {}".format(addr))
 VALID_USERNAME = "admin"
 VALID_PASSWORD = "password"
+
 
 def receive_data(size):
     data = conn.recv(size)
@@ -25,20 +31,21 @@ def receive_data(size):
         raise ConnectionError("Connection closed by client.")
     return data
 
+
 def send_data(data):
     conn.send(data)
+
 
 def handle_auth_request(request):
     _, credentials = request.split(" ")
     username, password = credentials.split(":")
-    print("username:" + username)
-    print("pass:" + password)
     if username == VALID_USERNAME and password == VALID_PASSWORD:
         send_data("OK".encode())
         return True
     else:
         send_data("FAIL".encode())
         return False
+
 
 authenticated = False
 
@@ -123,6 +130,7 @@ def upld():
     send_data(struct.pack("f", time.time() - start_time))
     send_data(struct.pack("i", file_size))
 
+
 def list_files():
     print("Listing files...")
     # Get list of files in directory
@@ -166,6 +174,7 @@ def list_files():
     receive_data(BUFFER_SIZE)
     print("Successfully sent file listing")
 
+
 def dwld():
     send_data(b"1")
 
@@ -202,6 +211,7 @@ def dwld():
     receive_data(BUFFER_SIZE)
     send_data(struct.pack("f", time.time() - start_time))
 
+
 def delf():
     # Send go-ahead
     send_data(b"1")
@@ -236,6 +246,7 @@ def delf():
         # The server probably received "N", but else used as a safety catch-all
         print("Delete abandoned by client!")
 
+
 def quit_server():
     send_data(b"1")
     # Close the connection and the server
@@ -243,6 +254,7 @@ def quit_server():
     s.close()
     # Restart the server
     os.execl(sys.executable, sys.executable, *sys.argv)
+
 
 while True:
     # Enter into a while loop to receive commands from the client
