@@ -125,6 +125,10 @@ def dwld(file_name):
     # Download given file
     print("Downloading file: {}".format(file_name))
     try:
+        # Check if the file exists
+        if not os.path.isfile(file_name):
+            print("Couldn't open file. Make sure the file name was entered correctly.")
+            return
         # Send server request
         s.sendall(b"DWLD")
     except Exception as e:
@@ -175,6 +179,10 @@ def delf(file_name):
     # Delete specified file from the file server
     print("Deleting file: {}...".format(file_name))
     try:
+        # Check if the file exists
+        if not os.path.isfile(file_name):
+            print("Couldn't open file. Make sure the file name was entered correctly.")
+            return
         # Send request, then wait for go-ahead
         s.sendall(b"DELF")
         s.recv(BUFFER_SIZE)
@@ -239,7 +247,6 @@ def delf(file_name):
 
 def quit_ftp():
     s.sendall(b"QUIT")
-    # Wait for server go-ahead
     s.recv(BUFFER_SIZE)
     s.close()
     print("Server connection ended")

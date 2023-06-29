@@ -179,13 +179,10 @@ def delf():
         print("Delete abandoned by client!")
 
 def quit_server():
-    # Send quit confirmation
     send_data(b"1")
-
     # Close the connection and the server
     conn.close()
     s.close()
-
     # Restart the server
     os.execl(sys.executable, sys.executable, *sys.argv)
 
