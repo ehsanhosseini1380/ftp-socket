@@ -2,6 +2,7 @@ import socket
 import sys
 import os
 import struct
+import datetime
 
 TCP_IP = "127.0.0.1"
 TCP_PORT = 1456
@@ -34,6 +35,7 @@ def conn():
 
 
 def upld(file_name):
+    file_name = os.path.abspath(file_name)
     # Upload a file
     print("\nUploading file: {}...".format(file_name))
     try:
@@ -102,7 +104,19 @@ def list_files():
             file_name = s.recv(file_name_size).decode()
             # Also get the file size for each item on the server
             file_size = struct.unpack("i", s.recv(4))[0]
-            print("\t{} - {}b".format(file_name, file_size))
+            # Also get the file list modify time for each item on the server
+            file_modify_time = struct.unpack("i", s.recv(4))[0]
+            # Also get the file create time for each item on the server
+            file_create_time = struct.unpack("i", s.recv(4))[0]
+
+
+
+            file_modify_time = datetime.datetime.fromtimestamp(file_modify_time)
+            file_create_time = datetime.datetime.fromtimestamp(file_create_time)
+            file_modify_time = file_modify_time.strftime('%Y-%m-%d %H:%M:%S')
+            file_create_time = file_create_time.strftime('%Y-%m-%d %H:%M:%S')
+            
+            print("\t{} - {}b - {} - {}".format(file_name, file_size, file_modify_time, file_create_time))
             # Make sure that the client and server are synchronized
             s.sendall(b"1")
         # Get total size of the directory
