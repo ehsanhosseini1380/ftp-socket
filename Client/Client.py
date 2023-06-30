@@ -115,11 +115,11 @@ def list_files():
             file_name_size = struct.unpack("i", s_ssl.recv(4))[0]
             file_name = s_ssl.recv(file_name_size).decode()
             # Also get the file size for each item on the server
-            file_size = struct.unpack("i", s.recv(4))[0]
+            file_size = struct.unpack("i", s_ssl.recv(4))[0]
             # Also get the file list modify time for each item on the server
-            file_modify_time = struct.unpack("i", s.recv(4))[0]
+            file_modify_time = struct.unpack("i", s_ssl.recv(4))[0]
             # Also get the file create time for each item on the server
-            file_create_time = struct.unpack("i", s.recv(4))[0]
+            file_create_time = struct.unpack("i", s_ssl.recv(4))[0]
 
 
 
