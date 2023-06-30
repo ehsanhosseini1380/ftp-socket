@@ -251,7 +251,7 @@ def quit_server():
     send_data(b"1")
     # Close the connection and the server
     conn.close()
-    s.close()
+    s_ssl.close()    
     # Restart the server
     os.execl(sys.executable, sys.executable, *sys.argv)
 
